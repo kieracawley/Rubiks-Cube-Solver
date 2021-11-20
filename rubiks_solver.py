@@ -60,15 +60,6 @@ class Cube(object):
                         piece.append(color)
                 layer.append(piece)    
             self.pieces.append(layer) 
-        #self.rotateFace("white", 1)
-        self.rotateFace("green", 1)
-        self.rotateFace("green", 1)
-        self.rotateFace("red", 1)
-        # self.rotateFace("blue", 1)
-        # self.rotateFace("red", 1)
-        self.facesFromPieces()
-        print(self.pieces)
-        print(self.faces)
     
     def facesFromPieces(self):
         for face in self.faces:
@@ -81,7 +72,7 @@ class Cube(object):
                 if layer == 0:
                     self.faces["white"][pieceIndex // 3].append(piece[2])
                 if layer == 2:
-                    self.faces["yellow"][pieceIndex // 3].append(piece[2])
+                    self.faces["yellow"][2 - (pieceIndex // 3)].append(piece[2])
                 if pieceIndex % 3 == 0:
                     self.faces["blue"][2 - (pieceIndex // 3)].append(piece[0])
                 if pieceIndex % 3 == 2:
@@ -120,7 +111,7 @@ class Cube(object):
             newPiece = copy.copy(piece)
             newPiece.pop(ind)
             newPiece = newPiece[::-1]
-            newPiece.insert(ind, face)
+            newPiece.insert(ind, piece[ind])
             newFace.append(newPiece)
 
         if ind == 0:
@@ -142,7 +133,7 @@ class Cube(object):
                 self.pieces[self.lcolors.index(face)] = newFace[2::3] + newFace[1::3] + newFace[0::3]
             else:
                 self.pieces[self.lcolors.index(face)] = newFace[0::3][::-1] + newFace[1::3][::-1] + newFace[2::3][::-1]
-
+        self.facesFromPieces()
 
     def setFaces(self):
         #self.getFaceImages()
@@ -153,9 +144,6 @@ class Cube(object):
         for face in self.faces:
             image = cv.imread(f"{face}-face.png")
             self.faces[face] = self.getFaceArray(100, image)
-            self.faces[face][1][1] = face
-        
-        # print(self.faces)
         
     def getFaceImages(self):
         cv.namedWindow("cameraView")
