@@ -30,6 +30,63 @@ class Cube(object):
 
     algorithm = []
 
+    def solveCube(self):
+        self.solveWhiteCross()
+        self.solveTopCorners()
+        print(self.algorithm)
+
+    def solveTopCorners(self):
+        cornerIndexes = [0, 2, 8, 6]
+        for i in range(4):
+            endCoords = (0, cornerIndexes[i]) 
+            xColor = self.xcolors[endCoords[1] % 3]
+            yColor = self.ycolors[endCoords[1] // 3]
+            piece = [xColor, yColor, "white"]
+            pieceCoords = self.findPiece(piece)
+            if pieceCoords != endCoords:
+                if pieceCoords[0] == endCoords[0]:
+                    algorithm = []
+                    currXColor = self.pieces[1][3 + (pieceCoords[1] % 3)][0]
+                    currDirection = 1
+                    if pieceCoords[1] == 2 or pieceCoords[1] == 6:
+                        currDirection = -1
+                    algorithm.append((currXColor, currDirection))
+                    algorithm.append(("yellow", currDirection))
+                    algorithm.append((currXColor, currDirection * -1 ))
+                    algorithm.append(("yellow", currDirection * -1 ))
+                    self.algorithm = self.algorithm + algorithm
+                    self.runAlgorithm(algorithm) 
+                    pieceCoords = (2, pieceCoords[1])
+                while pieceCoords[1] != endCoords[1]:
+                    self.algorithm.append(("yellow", 1))
+                    self.rotateFace("yellow", 1)
+                    pieceCoords = (2, cornerIndexes[(cornerIndexes.index(pieceCoords[1]) + 1) % 4])
+                direction = 1
+                if cornerIndexes.index(pieceCoords[1]) == 1 or cornerIndexes.index(pieceCoords[1]) == 3:
+                    direction = -1
+                algorithm = []
+                algorithm.append(("yellow", direction))
+                algorithm.append((xColor, direction))
+                algorithm.append(("yellow", direction * -1 ))
+                algorithm.append((xColor, direction * -1 ))
+                self.algorithm = self.algorithm + algorithm
+                self.runAlgorithm(algorithm)
+            while self.pieces[0][endCoords[1]][2] != "white":
+                algorithm = []
+                algorithm.append((xColor, direction))
+                algorithm.append(("yellow", direction))
+                algorithm.append((xColor, direction * -1 ))
+                algorithm.append(("yellow", direction * -1 ))
+                self.algorithm = self.algorithm + algorithm
+                self.runAlgorithm(algorithm)
+             
+    def runAlgorithm(self, algorithm):
+         for move in algorithm:
+            face = move[0]
+            direction = move[1] // abs(move[1])                    
+            for _ in range(abs(move[1])):
+                self.rotateFace(face, direction)
+
     def solveWhiteCross(self):
         colors = ["orange", "blue", "green", "red"]
         clockwise = [1, 3, 7, 5]
@@ -55,6 +112,7 @@ class Cube(object):
                 for _ in range(rotations):
                     self.rotateFace("white", -1)
                     self.algorithm.append(("white", -1))
+            endCoords = (0, (i * 2) + 1 )
             if self.pieces[0][endCoords[1]][2] != "white":
                 frontCoords = (1, clockwise[(clockwise.index(endCoords[1]) + 1) % 4])
                 front = self.pieces[1][frontCoords[1]][0]
@@ -62,17 +120,12 @@ class Cube(object):
                 if front == None:
                     front = self.pieces[1][frontCoords[1]][1]
                 newAlgorithm = []
-                newAlgorithm.append(right, -1)
-                newAlgorithm.append("white", 1)
-                newAlgorithm.append(front, -1)
-                newAlgorithm.append("white", -1)
+                newAlgorithm.append((right, -1))
+                newAlgorithm.append(("white", 1))
+                newAlgorithm.append((front, -1))
+                newAlgorithm.append(("white", -1))
                 self.algorithm = self.algorithm + newAlgorithm
-                for move in newAlgorithm:
-                    face = move[0]
-                    direction = move[1] // abs(move[1])
-                    for _ in range(abs(move[1])):
-                        self.rotateFace(face, direction)
-        print(self.algorithm)
+                self.runAlgorithm(newAlgorithm)
 
     def shareFace(self, piece1Coords, piece2Coords):
         if piece1Coords[0] == piece2Coords[0] and piece1Coords[0] != 1:
@@ -174,11 +227,7 @@ class Cube(object):
 
         self.algorithm = self.algorithm + algorithm
 
-        for move in algorithm:
-            face = move[0]
-            direction = move[1] // abs(move[1])
-            for _ in range(abs(move[1])):
-                self.rotateFace(face, direction)
+        self.runAlgorithm(algorithm)
 
     def acrossEdgeSwao(self, side1Coords, side2Coords):
         midSideCoords = []
@@ -305,7 +354,7 @@ class Cube(object):
         self.facesFromPieces()
 
     def setFaces(self):
-        self.getFaceImages()
+        #self.getFaceImages()
         for color in self.colorValues:
             image = cv.imread(f"{color}.png")
             self.colorValues[color] = self.getAverageColor(20, 20, 75, 75, image)
@@ -314,6 +363,7 @@ class Cube(object):
             image = cv.imread(f"{face}-face.png")
             self.faces[face] = self.getFaceArray(100, image)
             self.faces[face][1][1] = face
+        self.facesToPieces()
         
     def getFaceImages(self):
         cv.namedWindow("cameraView")
@@ -415,11 +465,7 @@ def appStarted(app):
     app.size = 100
     app.cube = Cube()
     app.cube.setFaces()
-    app.cube.facesToPieces()
-    # app.cube.acrossEdgeSwao((1, 2), (1, 8))
-    # app.cube.acrossEdgeSwao((1, 8), (1, 6))
-    #app.cube.runAlgorithm()
-    #app.cube.solveWhiteCross()
+    app.cube.solveCube()
 
 def drawBox(app, canvas, x, y, color):
     canvas.create_rectangle(x, y, x + app.size, y + app.size, fill=color, outline="black", width=5)
@@ -444,5 +490,3 @@ def redrawAll(app, canvas):
             startingY += 350
 
 runApp(width=1200, height=800)
-
-
