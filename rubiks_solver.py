@@ -30,12 +30,79 @@ class Cube(object):
 
     algorithm = []
 
-    def runAlgorithm(self):
-        for move in self.algorithm:
-            face = move[0]
-            direction = move[1] // abs(move[1])
-            for _ in range(abs(move[1])):
-                self.rotateFace(face, direction)
+    def solveWhiteCross(self):
+        colors = ["orange", "blue", "green", "red"]
+        clockwise = [1, 3, 7, 5]
+        for i in range(4):
+            endCoords = (0, (i * 2) + 1 )
+            piece = [colors[i], "white"]
+            if i == 1 or i == 2:
+                piece.insert(1, None)
+            else:
+                piece.insert(0, None)
+            pieceCoords = self.findPiece(piece)
+            rotations = 0
+            if pieceCoords != endCoords:
+                while self.shareFace(endCoords, pieceCoords) == False:
+                    self.rotateFace("white", 1)
+                    self.algorithm.append(("white", 1))
+                    rotations += 1 
+                    endCoords = (0, clockwise[(clockwise.index(endCoords[1]) + 1) % 4])
+                if self.isAcross(endCoords, pieceCoords):
+                    self.acrossEdgeSwao(endCoords, pieceCoords)
+                else:
+                    self.adjacentEdgeSwap(endCoords, pieceCoords)
+                for _ in range(rotations):
+                    self.rotateFace("white", -1)
+                    self.algorithm.append(("white", -1))
+            if self.pieces[0][endCoords[1]][2] != "white":
+                frontCoords = (1, clockwise[(clockwise.index(endCoords[1]) + 1) % 4])
+                front = self.pieces[1][frontCoords[1]][0]
+                right = self.pieces[0][endCoords[1]][2]
+                if front == None:
+                    front = self.pieces[1][frontCoords[1]][1]
+                newAlgorithm = []
+                newAlgorithm.append(right, -1)
+                newAlgorithm.append("white", 1)
+                newAlgorithm.append(front, -1)
+                newAlgorithm.append("white", -1)
+                self.algorithm = self.algorithm + newAlgorithm
+                for move in newAlgorithm:
+                    face = move[0]
+                    direction = move[1] // abs(move[1])
+                    for _ in range(abs(move[1])):
+                        self.rotateFace(face, direction)
+        print(self.algorithm)
+
+    def shareFace(self, piece1Coords, piece2Coords):
+        if piece1Coords[0] == piece2Coords[0] and piece1Coords[0] != 1:
+            return True
+        if piece1Coords[1] % 3 == piece2Coords[1] % 3 and piece1Coords[1] % 3 != 1:
+            return True
+        if piece1Coords[1] // 3 == piece2Coords[1] // 3 and piece1Coords[1] // 3 != 1:
+            return True
+        return False
+
+    def isAcross(self, piece1Coords, piece2Coords):
+        if piece1Coords[1] == piece2Coords[1]:
+            return True
+        if piece1Coords[0] == piece2Coords[0]:
+            if piece1Coords[1] % 3 == piece2Coords[1] % 3 or piece1Coords[1] // 3 == piece2Coords[1] // 3:
+                return True
+        return False
+
+    def findPiece(self, piece):
+        for layer in range(3):
+            for i in range(9):
+               if self.matchPermutations(piece, self.pieces[layer][i]):
+                   return (layer, i)
+        return None
+    
+    def matchPermutations(self, piece1, piece2):
+        for i in range(3):
+            if piece1[i:] + piece1[:i] == piece2 or piece1[i:] + piece1[:i] == piece2[::-1]:
+                return True
+        return False
 
     def getFaces(self):
         return self.faces
@@ -93,15 +160,25 @@ class Cube(object):
             else:
                 rightCoords = [2 - leftSideCoords[0], leftSideCoords[1]]
                 right = self.pieces[rightCoords[0]][4][2]
+        
+        algorithm = []
 
-        self.algorithm.append((right, 1))
-        self.algorithm.append((top, 1))
-        self.algorithm.append((right, -1))
-        self.algorithm.append((top, 1))
-        self.algorithm.append((right, 1))
-        self.algorithm.append((top, 2))
-        self.algorithm.append((right, -1))
-        self.algorithm.append((top, 1))
+        algorithm.append((right, 1))
+        algorithm.append((top, 1))
+        algorithm.append((right, -1))
+        algorithm.append((top, 1))
+        algorithm.append((right, 1))
+        algorithm.append((top, 2))
+        algorithm.append((right, -1))
+        algorithm.append((top, 1))
+
+        self.algorithm = self.algorithm + algorithm
+
+        for move in algorithm:
+            face = move[0]
+            direction = move[1] // abs(move[1])
+            for _ in range(abs(move[1])):
+                self.rotateFace(face, direction)
 
     def acrossEdgeSwao(self, side1Coords, side2Coords):
         midSideCoords = []
@@ -120,7 +197,7 @@ class Cube(object):
             if side1Coords[1] % 3 == 1:
                 midSideCoords = (1, 3 * (side1Coords[1] // 3))
             else:
-                midSideCoords = (1, side1Coords % 3)
+                midSideCoords = (1, side1Coords[1] % 3)
         self.adjacentEdgeSwap(side1Coords, midSideCoords)
         self.adjacentEdgeSwap(midSideCoords, side2Coords)
         self.adjacentEdgeSwap(side1Coords, midSideCoords)
@@ -228,7 +305,7 @@ class Cube(object):
         self.facesFromPieces()
 
     def setFaces(self):
-        #self.getFaceImages()
+        self.getFaceImages()
         for color in self.colorValues:
             image = cv.imread(f"{color}.png")
             self.colorValues[color] = self.getAverageColor(20, 20, 75, 75, image)
@@ -339,8 +416,10 @@ def appStarted(app):
     app.cube = Cube()
     app.cube.setFaces()
     app.cube.facesToPieces()
-    app.cube.acrossEdgeSwao((1, 2), (1, 8))
-    app.cube.runAlgorithm()
+    # app.cube.acrossEdgeSwao((1, 2), (1, 8))
+    # app.cube.acrossEdgeSwao((1, 8), (1, 6))
+    #app.cube.runAlgorithm()
+    #app.cube.solveWhiteCross()
 
 def drawBox(app, canvas, x, y, color):
     canvas.create_rectangle(x, y, x + app.size, y + app.size, fill=color, outline="black", width=5)
