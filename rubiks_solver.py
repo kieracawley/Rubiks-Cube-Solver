@@ -30,8 +30,100 @@ class Cube(object):
 
     algorithm = []
 
+    def runAlgorithm(self):
+        for move in self.algorithm:
+            face = move[0]
+            direction = move[1] // abs(move[1])
+            for _ in range(abs(move[1])):
+                self.rotateFace(face, direction)
+
     def getFaces(self):
         return self.faces
+
+    def adjacentEdgeSwap(self, side1Coords, side2Coords):
+        top = ""
+        right = ""
+        if side1Coords[0] == side2Coords[0]:
+            top = self.pieces[side1Coords[0]][4][2]
+            leftSideCoords = []
+            order  = [1, 3, 7, 5]
+            if top == "yellow":
+                order = order[::-1]
+            if (order.index(side2Coords[1]) + 1) % 4 == order.index(side1Coords[1]):
+                leftSideCoords = side1Coords
+            else:
+                leftSideCoords = side2Coords
+            if leftSideCoords[1] % 3 == 1:
+                rightCoords = [0, (2 - leftSideCoords[1] // 3) * 3 +  1]
+                right = self.pieces[1][rightCoords[1]][1]
+            else:
+                rightCoords = [0, 3 + (2 - leftSideCoords[1] % 3)]
+                right = self.pieces[1][rightCoords[1]][0]
+        elif side1Coords[1] % 3 == side2Coords[1] % 3:
+            top = self.pieces[1][3 + (side1Coords[1] % 3)][0]
+            side1Num = side1Coords[0] + (side1Coords[1] // 3) * 3
+            side2Num = side2Coords[0] + (side2Coords[1] // 3) * 3
+            order  = [1, 3, 7, 5]
+            if top == "blue":
+                order = order[::-1]
+            if (order.index(side2Num) + 1) % 4 == order.index(side1Num):
+                leftSideCoords = side1Coords
+            else:
+                leftSideCoords = side2Coords
+            if leftSideCoords[0] == 1:
+                rightCoords = [leftSideCoords[0], (2 - leftSideCoords[1] // 3) * 3 +  1]
+                right = self.pieces[1][rightCoords[1]][1]
+            else:
+                rightCoords = [2 - leftSideCoords[0], leftSideCoords[1]]
+                right = self.pieces[rightCoords[0]][4][2]
+        else:
+            top = self.pieces[1][ 1 + ((side1Coords[1] // 3) * 3)][1]
+            side1Num = side1Coords[0] + (side1Coords[1] % 3) * 3 
+            side2Num = side2Coords[0] + (side2Coords[1] % 3) * 3 
+            order  = [1, 3, 7, 5]
+            if top == "red":
+                order = order[::-1]
+            if (order.index(side2Num) + 1) % 4 == order.index(side1Num):
+                leftSideCoords = side1Coords
+            else:
+                leftSideCoords = side2Coords
+            if leftSideCoords[0] == 1:
+                rightCoords = [leftSideCoords[0], 3 + (2 - leftSideCoords[1] % 3)]
+                right = self.pieces[1][rightCoords[1]][0]
+            else:
+                rightCoords = [2 - leftSideCoords[0], leftSideCoords[1]]
+                right = self.pieces[rightCoords[0]][4][2]
+
+        self.algorithm.append((right, 1))
+        self.algorithm.append((top, 1))
+        self.algorithm.append((right, -1))
+        self.algorithm.append((top, 1))
+        self.algorithm.append((right, 1))
+        self.algorithm.append((top, 2))
+        self.algorithm.append((right, -1))
+        self.algorithm.append((top, 1))
+
+    def acrossEdgeSwao(self, side1Coords, side2Coords):
+        midSideCoords = []
+        if side1Coords[0] == side2Coords[0]: 
+            if side1Coords[0] != 1:
+                if side1Coords[1] // 3 == side2Coords[1] // 3:
+                    midSideCoords = (side1Coords[0], 1)
+                else:
+                    midSideCoords = (side1Coords[0], 3)
+            else:
+                if side1Coords[1] % 3 == side2Coords[1] % 3:
+                    midSideCoords = (2, 3 + side1Coords[1] % 3)
+                else:
+                    midSideCoords = (2, (side1Coords[1] // 3) * 3 + 1)
+        else:
+            if side1Coords[1] % 3 == 1:
+                midSideCoords = (1, 3 * (side1Coords[1] // 3))
+            else:
+                midSideCoords = (1, side1Coords % 3)
+        self.adjacentEdgeSwap(side1Coords, midSideCoords)
+        self.adjacentEdgeSwap(midSideCoords, side2Coords)
+        self.adjacentEdgeSwap(side1Coords, midSideCoords)
 
     def facesToPieces(self):
         self.pieces = []
@@ -144,6 +236,7 @@ class Cube(object):
         for face in self.faces:
             image = cv.imread(f"{face}-face.png")
             self.faces[face] = self.getFaceArray(100, image)
+            self.faces[face][1][1] = face
         
     def getFaceImages(self):
         cv.namedWindow("cameraView")
@@ -246,6 +339,8 @@ def appStarted(app):
     app.cube = Cube()
     app.cube.setFaces()
     app.cube.facesToPieces()
+    app.cube.acrossEdgeSwao((1, 2), (1, 8))
+    app.cube.runAlgorithm()
 
 def drawBox(app, canvas, x, y, color):
     canvas.create_rectangle(x, y, x + app.size, y + app.size, fill=color, outline="black", width=5)
