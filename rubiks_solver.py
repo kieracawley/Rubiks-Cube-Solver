@@ -13,6 +13,7 @@ class Cube(object):
         "yellow": (255, 255, 0)
     }
 
+
     faces = {
         "red": [],
         "green": [],
@@ -22,6 +23,8 @@ class Cube(object):
         "yellow": []
     }
 
+    currStep = 0
+
     lcolors = ["white", None, "yellow"] 
     xcolors = ["blue", None, "green"] 
     ycolors = ["orange", None, "red"]
@@ -30,10 +33,217 @@ class Cube(object):
 
     algorithm = []
 
+    def stepForward(self):
+        if self.currStep < len(self.algorithm):
+            self.runAlgorithm([self.algorithm[self.currStep]])
+            self.currStep += 1
+
+    def stepBackward(self):
+        if self.currStep > 0:
+            self.currStep -= 1 
+            self.runAlgorithm([(self.algorithm[self.currStep][0], self.algorithm[self.currStep][1] * -1)])
+
+    def resetCube(self):
+        for move in self.algorithm[::-1]:
+            self.runAlgorithm([(move[0], -1 * move[1])])
+
+    def shortenAlgorithm(self):
+        newAlgorithm = []
+        prevFace = ""
+        prevDirection = 0
+        for move in self.algorithm:
+            if move[0] == prevFace:
+                prevDirection += move[1]
+            else:
+                if prevDirection % 4 != 0:
+                    newAlgorithm.append((prevFace, prevDirection))
+                prevFace = move[0]
+                prevDirection = move[1]
+        newAlgorithm.append((prevFace, prevDirection))
+        self.algorithm = newAlgorithm
+
     def solveCube(self):
         self.solveWhiteCross()
         self.solveTopCorners()
-        print(self.algorithm)
+        self.solveMidEdges()
+        self.solveYellowEdges()
+        self.solveYellowCorners()
+        for _ in range(5):
+            self.shortenAlgorithm()
+        self.resetCube()
+
+    def solveYellowCorners(self):
+        for _ in range(4):
+            while self.pieces[2][0][2] != "yellow":
+                algorithm = []
+                algorithm.append(("blue", -1)) 
+                algorithm.append(("white", -1))
+                algorithm.append(("blue", 1))
+                algorithm.append(("white", 1))
+                self.algorithm = self.algorithm + algorithm
+                self.runAlgorithm(algorithm)
+            self.algorithm.append(("yellow", 1))
+            self.rotateFace("yellow", 1)
+        algorithm = []
+        algorithm.append(("orange", -1))
+        algorithm.append(("white", -1))
+        algorithm.append(("orange", 1))
+        algorithm.append(("yellow", 1))
+        algorithm.append(("orange", -1))
+        algorithm.append(("white", 1))
+        algorithm.append(("orange", 1))
+        algorithm.append(("yellow", 1))
+        algorithm.append(("orange", -1))
+        algorithm.append(("white", -1))
+        algorithm.append(("orange", 1))
+        algorithm.append(("yellow", -2))
+        algorithm.append(("orange", -1))
+        algorithm.append(("white", 1))
+        algorithm.append(("orange", 1))
+        
+        correctCorners = self.correctYellowCorners()
+
+        if correctCorners != 4:
+            if correctCorners == 0:
+                self.algorithm = self.algorithm + algorithm
+                self.runAlgorithm(algorithm)
+            correctCorners = self.correctYellowCorners()
+            rotations = 0
+            while self.findPiece(correctCorners[0]) != (2, 8):
+                rotations += 1 
+                self.algorithm.append(("yellow", 1))
+                self.rotateFace("yellow", 1)
+            while len(correctCorners) == 1:
+                self.algorithm = self.algorithm + algorithm
+                self.runAlgorithm(algorithm)
+                correctCorners = self.correctYellowCorners()
+            for _ in range(rotations):
+                self.algorithm.append(("yellow", -1))
+                self.rotateFace("yellow", -1)
+        
+    def correctYellowCorners(self):
+        rotations = 0
+        while self.findPiece([None, "orange", "yellow"]) != (2, 1):
+            self.rotateFace("yellow", 1)
+            rotations += 1
+        incorrect = []
+        corners = [0, 2, 6, 8]
+        for i in range(4):
+            cornerCoords = (2, corners[i])
+            piece = [self.xcolors[cornerCoords[1] % 3], self.ycolors[cornerCoords[1] // 3], "yellow"]
+            pieceCoords = self.findPiece(piece)
+            if cornerCoords == pieceCoords:
+                incorrect.append(piece)
+        for _ in range(rotations):
+            self.rotateFace("yellow", -1)
+        return incorrect
+
+    def solveYellowEdges(self):
+        faces = self.getYellowFaces()
+        algorithm = []
+        algorithm.append(("blue", 1))
+        algorithm.append(("red", 1))
+        algorithm.append(("yellow", 1))
+        algorithm.append(("red", -1))
+        algorithm.append(("yellow", -1))
+        algorithm.append(("blue", -1))
+
+        if len(faces) == 0:
+            self.algorithm = self.algorithm + algorithm
+            self.runAlgorithm(algorithm)
+            faces = self.getYellowFaces()
+        
+        while len(faces) == 2:
+            while faces != [1, 7] and faces != [1, 5]:
+                self.algorithm.append(("yellow", 1))
+                self.rotateFace("yellow", 1)
+                faces = self.getYellowFaces()
+            self.algorithm = self.algorithm + algorithm
+            self.runAlgorithm(algorithm)
+            faces = self.getYellowFaces()
+
+        for i in range(3):
+            endCoords = (2, 1 + (i * 2))
+            piece = [None, "yellow"]
+            if i == 0:
+                piece.insert(1, self.ycolors[endCoords[1] // 3])
+            else:
+                piece.insert(0, self.xcolors[endCoords[1] % 3])
+            pieceCoords = self.findPiece(piece)
+            if endCoords != pieceCoords:
+                if self.isAcross(endCoords, pieceCoords):
+                    self.acrossEdgeSwao(endCoords, pieceCoords)
+                else:
+                    self.adjacentEdgeSwap(endCoords, pieceCoords)
+            pieceCoords = self.findPiece(piece)
+
+    def getYellowFaces(self):
+        yellowFaces = []
+        for i in range(4):
+            edgeCoords = [2, 1 + (2 * i)]
+            if self.pieces[edgeCoords[0]][edgeCoords[1]][2] == "yellow":
+                yellowFaces.append(edgeCoords[1])
+        return yellowFaces
+
+    def solveMidEdges(self):
+        edges = [0, 2, 8, 6]
+        colors = ["orange", "blue", "red", "green"]
+        for i in range(4):
+            endCoords = (1, edges[i])
+            xcolor = self.xcolors[endCoords[1] % 3]
+            ycolor = self.ycolors[endCoords[1] // 3]
+            leftSide = xcolor
+            rightSide = ycolor
+            if colors[(colors.index(xcolor) - 1)] == ycolor:
+                leftSide = ycolor
+                rightSide = xcolor
+            piece = [self.xcolors[endCoords[1] % 3], self.ycolors[endCoords[1] // 3], None]
+            pieceCoords = self.findPiece(piece)
+            if self.pieces[endCoords[0]][endCoords[1]] != piece:
+                if pieceCoords[0] == 1:
+                    currLeftSide = self.xcolors[pieceCoords[1] % 3]
+                    currRightSide = self.ycolors[pieceCoords[1] // 3]
+                    if colors[(colors.index(self.xcolors[pieceCoords[1] % 3]) - 1)] == self.ycolors[pieceCoords[1] // 3]:
+                        currLeftSide = self.ycolors[pieceCoords[1] // 3]
+                        currRightSide = self.xcolors[pieceCoords[1] % 3]
+                    algorithm = []
+                    algorithm.append(("yellow", -1))
+                    algorithm.append((currLeftSide, -1))
+                    algorithm.append(("yellow", 1))
+                    algorithm.append((currLeftSide, 1))
+                    algorithm.append(("yellow", 1))
+                    algorithm.append((currRightSide, 1))
+                    algorithm.append(("yellow", -1))
+                    algorithm.append((currRightSide, -1))
+                    self.algorithm = self.algorithm + algorithm
+                    self.runAlgorithm(algorithm)
+                    pieceCoords = self.findPiece(piece)
+                centerFace = self.pieces[pieceCoords[0]][pieceCoords[1]][0]
+                if centerFace == None:
+                    centerFace = self.pieces[pieceCoords[0]][pieceCoords[1]][1]
+                centerCoords = self.findPiece([None, None, centerFace])
+                while pieceCoords[1] != centerCoords[1]:
+                    self.rotateFace("yellow", 1)
+                    self.algorithm.append(("yellow", 1))
+                    pieceCoords = self.findPiece(piece)
+                face1 = xcolor
+                if xcolor == centerFace:
+                    face1 = ycolor
+                direction = 1
+                if centerFace == rightSide:
+                    direction = -1
+                algorithm = []
+                algorithm.append(("yellow", direction))
+                algorithm.append((face1, direction))
+                algorithm.append(("yellow", -1 * direction))
+                algorithm.append((face1, -1 * direction))
+                algorithm.append(("yellow", -1 * direction))
+                algorithm.append((centerFace, -1 * direction))
+                algorithm.append(("yellow", direction))
+                algorithm.append((centerFace, direction))
+                self.algorithm = self.algorithm + algorithm
+                self.runAlgorithm(algorithm)
+                pieceCoords = self.findPiece(piece)
 
     def solveTopCorners(self):
         cornerIndexes = [0, 2, 8, 6]
@@ -43,6 +253,9 @@ class Cube(object):
             yColor = self.ycolors[endCoords[1] // 3]
             piece = [xColor, yColor, "white"]
             pieceCoords = self.findPiece(piece)
+            direction = 1 
+            if endCoords[1] == 2 or endCoords[1] == 6:
+                    direction = -1
             if pieceCoords != endCoords:
                 if pieceCoords[0] == endCoords[0]:
                     algorithm = []
@@ -56,14 +269,10 @@ class Cube(object):
                     algorithm.append(("yellow", currDirection * -1 ))
                     self.algorithm = self.algorithm + algorithm
                     self.runAlgorithm(algorithm) 
-                    pieceCoords = (2, pieceCoords[1])
                 while pieceCoords[1] != endCoords[1]:
                     self.algorithm.append(("yellow", 1))
                     self.rotateFace("yellow", 1)
-                    pieceCoords = (2, cornerIndexes[(cornerIndexes.index(pieceCoords[1]) + 1) % 4])
-                direction = 1
-                if cornerIndexes.index(pieceCoords[1]) == 1 or cornerIndexes.index(pieceCoords[1]) == 3:
-                    direction = -1
+                    pieceCoords = self.findPiece(piece)
                 algorithm = []
                 algorithm.append(("yellow", direction))
                 algorithm.append((xColor, direction))
@@ -72,13 +281,14 @@ class Cube(object):
                 self.algorithm = self.algorithm + algorithm
                 self.runAlgorithm(algorithm)
             while self.pieces[0][endCoords[1]][2] != "white":
-                algorithm = []
-                algorithm.append((xColor, direction))
-                algorithm.append(("yellow", direction))
-                algorithm.append((xColor, direction * -1 ))
-                algorithm.append(("yellow", direction * -1 ))
-                self.algorithm = self.algorithm + algorithm
-                self.runAlgorithm(algorithm)
+                for _ in range(2):
+                    algorithm = []
+                    algorithm.append((xColor, direction))
+                    algorithm.append(("yellow", direction))
+                    algorithm.append((xColor, direction * -1 ))
+                    algorithm.append(("yellow", direction * -1 ))
+                    self.algorithm = self.algorithm + algorithm
+                    self.runAlgorithm(algorithm)
              
     def runAlgorithm(self, algorithm):
          for move in algorithm:
@@ -88,31 +298,45 @@ class Cube(object):
                 self.rotateFace(face, direction)
 
     def solveWhiteCross(self):
-        colors = ["orange", "blue", "green", "red"]
+        colors = ["orange", "blue", "red", "green"]
         clockwise = [1, 3, 7, 5]
         for i in range(4):
-            endCoords = (0, (i * 2) + 1 )
+            endCoords = (0, clockwise[i])
             piece = [colors[i], "white"]
             if i == 1 or i == 2:
                 piece.insert(1, None)
             else:
                 piece.insert(0, None)
             pieceCoords = self.findPiece(piece)
-            rotations = 0
             if pieceCoords != endCoords:
+                if pieceCoords[0] == endCoords[0]:
+                    currFace = colors[clockwise.index(pieceCoords[1])]
+                    self.rotateFace(currFace, 1)
+                    self.rotateFace(currFace, 1)
+                    self.algorithm.append((currFace, 2))
+                    pieceCoords = self.findPiece(piece)
+                rotations = 0
                 while self.shareFace(endCoords, pieceCoords) == False:
                     self.rotateFace("white", 1)
                     self.algorithm.append(("white", 1))
                     rotations += 1 
                     endCoords = (0, clockwise[(clockwise.index(endCoords[1]) + 1) % 4])
+                sharedFace = colors[clockwise.index(endCoords[1])]
                 if self.isAcross(endCoords, pieceCoords):
-                    self.acrossEdgeSwao(endCoords, pieceCoords)
+                    self.rotateFace(sharedFace, 1)
+                    self.rotateFace(sharedFace, 1)
+                    self.algorithm.append((sharedFace, 2))
+                    pieceCoords = self.findPiece(piece)
                 else:
-                    self.adjacentEdgeSwap(endCoords, pieceCoords)
+                    while endCoords != pieceCoords:
+                        self.rotateFace(sharedFace, 1)
+                        self.algorithm.append((sharedFace, 1))
+                        pieceCoords = self.findPiece(piece)
+
                 for _ in range(rotations):
                     self.rotateFace("white", -1)
                     self.algorithm.append(("white", -1))
-            endCoords = (0, (i * 2) + 1 )
+            endCoords = (0, clockwise[i])
             if self.pieces[0][endCoords[1]][2] != "white":
                 frontCoords = (1, clockwise[(clockwise.index(endCoords[1]) + 1) % 4])
                 front = self.pieces[1][frontCoords[1]][0]
@@ -462,10 +686,25 @@ class Cube(object):
         return face
 
 def appStarted(app):
+    app.page = 0
     app.size = 100
     app.cube = Cube()
-    app.cube.setFaces()
-    app.cube.solveCube()
+    # app.cube.solveCube()
+
+def keyPressed(app, event):
+    if (event.key == 'Left'):
+        if app.page == 2:
+            app.cube.stepBackward()
+    elif (event.key == 'Right'):
+        if app.page == 2:
+            app.cube.stepForward()
+    elif (event.key == 'Space'):
+        app.page += 1
+        if app.page == 1:
+            app.cube.getFaceImages()
+            app.cube.setFaces()
+        if app.page == 2:
+            app.cube.solveCube()
 
 def drawBox(app, canvas, x, y, color):
     canvas.create_rectangle(x, y, x + app.size, y + app.size, fill=color, outline="black", width=5)
@@ -479,14 +718,17 @@ def drawFace(app, canvas, face, startX, startY):
         drawBox(app, canvas, startX + x, startY + y, c)
 
 def redrawAll(app, canvas):
-    canvas.create_rectangle(0, 0, app.width, app.height, fill="black")
-    startingX = 0
-    startingY = 0
-    for face in app.cube.getFaces():
-        drawFace(app, canvas, app.cube.getFaces()[face], startingX, startingY)
-        startingX += 350
-        if startingX > 1000:
-            startingX = 0
-            startingY += 350
+    if app.page == 0:
+        canvas.create_text(app.size/2, app.size/2, text="Welcome", fill="black", font="Helvetica 15 bold")
+    if app.page == 1 or app.page == 2:
+        canvas.create_rectangle(0, 0, app.width, app.height, fill="black")
+        startingX = 0
+        startingY = 0
+        for face in app.cube.getFaces():
+            drawFace(app, canvas, app.cube.getFaces()[face], startingX, startingY)
+            startingX += 350
+            if startingX > 1000:
+                startingX = 0
+                startingY += 350
 
 runApp(width=1200, height=800)
