@@ -8,8 +8,8 @@ class Cube(object):
         "red": (255, 0, 0),
         "green": (0, 255, 0),
         "blue": (0, 0, 255),
-        "white": (255, 255, 255),
         "orange": (255, 165, 0),
+        "white": (255, 255, 255),
         "yellow": (255, 255, 0)
     }
 
@@ -18,8 +18,8 @@ class Cube(object):
         "red": [],
         "green": [],
         "blue": [],
-        "white": [],
         "orange": [],
+        "white": [],
         "yellow": []
     }
 
@@ -63,6 +63,7 @@ class Cube(object):
         self.algorithm = newAlgorithm
 
     def solveCube(self):
+        self.algorithm = []
         self.solveWhiteCross()
         self.solveTopCorners()
         self.solveMidEdges()
@@ -104,10 +105,10 @@ class Cube(object):
         correctCorners = self.correctYellowCorners()
 
         if correctCorners != 4:
-            if correctCorners == 0:
+            if len(correctCorners) == 0:
                 self.algorithm = self.algorithm + algorithm
                 self.runAlgorithm(algorithm)
-            correctCorners = self.correctYellowCorners()
+                correctCorners = self.correctYellowCorners()
             rotations = 0
             while self.findPiece(correctCorners[0]) != (2, 8):
                 rotations += 1 
@@ -578,7 +579,6 @@ class Cube(object):
         self.facesFromPieces()
 
     def setFaces(self):
-        #self.getFaceImages()
         for color in self.colorValues:
             image = cv.imread(f"{color}.png")
             self.colorValues[color] = self.getAverageColor(20, 20, 75, 75, image)
@@ -685,11 +685,18 @@ class Cube(object):
             face[box // 3][box % 3] = color
         return face
 
+    def getCurrentStep(self):
+        if self.currStep < len(self.algorithm):
+            step = self.algorithm[self.currStep]
+            direction = "clockwise"
+            if step[1] < 0:
+                direction = "counterclockwise"
+            return f"Rotate the {step[0]} face {direction} {abs(step[1])} time(s)"
+        return "The cube is sovled!"
+
 def appStarted(app):
     app.page = 0
-    app.size = 100
     app.cube = Cube()
-    # app.cube.solveCube()
 
 def keyPressed(app, event):
     if (event.key == 'Left'):
@@ -699,36 +706,93 @@ def keyPressed(app, event):
         if app.page == 2:
             app.cube.stepForward()
     elif (event.key == 'Space'):
-        app.page += 1
-        if app.page == 1:
-            app.cube.getFaceImages()
-            app.cube.setFaces()
-        if app.page == 2:
-            app.cube.solveCube()
+        if app.page < 2:
+            app.page += 1
+            if app.page == 1:
+                app.cube.getFaceImages()
+                app.cube.setFaces()
+            if app.page == 2:
+                app.cube.solveCube()
 
 def drawBox(app, canvas, x, y, color):
-    canvas.create_rectangle(x, y, x + app.size, y + app.size, fill=color, outline="black", width=5)
-    canvas.create_text(x + app.size/2, y + app.size/2, text=color, fill="black", font="Helvetica 15 bold")
+    canvas.create_rectangle(x, y, x + 50, y + 50, fill=color, outline="black", width=5)
+    canvas.create_text(x + 25, y + 25, text=color, fill="black", font="Helvetica 10 bold")
 
-def drawFace(app, canvas, face, startX, startY):
+def drawFace(app, canvas, faceColor, startX, startY, rotation):
+    face = app.cube.getFaces()[faceColor]
+    for _ in range(rotation):
+        newFace = [["","",""],["","",""],["","",""]]
+        for i in range(9):
+            newFace[i % 3][i // 3] = face[2 - (i // 3)][i % 3]
+        face = newFace
     for box in range(9):
-        x = app.size * (box % 3)
-        y = app.size * (box // 3)
+        x = 50 * (box % 3)
+        y = 50 * (box // 3)
         c = face[box % 3][box //3]
         drawBox(app, canvas, startX + x, startY + y, c)
 
-def redrawAll(app, canvas):
-    if app.page == 0:
-        canvas.create_text(app.size/2, app.size/2, text="Welcome", fill="black", font="Helvetica 15 bold")
-    if app.page == 1 or app.page == 2:
-        canvas.create_rectangle(0, 0, app.width, app.height, fill="black")
-        startingX = 0
-        startingY = 0
-        for face in app.cube.getFaces():
-            drawFace(app, canvas, app.cube.getFaces()[face], startingX, startingY)
-            startingX += 350
-            if startingX > 1000:
-                startingX = 0
-                startingY += 350
+def drawIsometric(app, canvas, top, right, left, startX, startY):
+    rotations = {
+        "white": 0,
+        "green": 0,
+        "orange": 0,
+        "red": 2,
+        "blue": 2,
+        "yellow": 1
+    }
+    topFace = app.cube.getFaces()[top]
+    rightFace = app.cube.getFaces()[right]
+    leftFace = app.cube.getFaces()[left]
+    
+    faces = [[topFace, top], [rightFace, right], [leftFace, left]]
 
-runApp(width=1200, height=800)
+    for face in faces:
+        for _ in range(rotations[face[1]]):
+            newFace = [["","",""],["","",""],["","",""]]
+            for i in range(9):
+                newFace[i % 3][i // 3] = face[0][2 - (i // 3)][i % 3]
+            face[0] = newFace
+
+    for i in range(9):
+        topX = 43 * ((i % 3) + (i // 3)) + startX
+        topY = 25 * ((i % 3) - (i // 3)) + startY
+        canvas.create_polygon(topX, topY, topX + 43, topY - 25, topX + 86, topY, topX + 43, topY + 25, fill=faces[0][0][i // 3][i % 3], outline="black", width=5)
+        rightX = 129 + 43 * (i // 3) + startX 
+        rightY = 50 * (i % 3) - 25 * (i // 3) + startY + 75
+        canvas.create_polygon(rightX, rightY, rightX + 43, rightY - 25, rightX + 43, rightY + 25, rightX, rightY + 50, fill=faces[1][0][i // 3][i % 3], outline="black", width=5)
+        leftX = 43 * (i // 3) + startX 
+        leftY = 50 * (i % 3) - 25 * (2 - (i // 3)) + startY + 75
+        canvas.create_polygon(leftX, leftY - 25, leftX + 43, leftY, leftX + 43, leftY + 50, leftX, leftY + 25, fill=faces[2][0][i // 3][i % 3], outline="black", width=5)
+
+def redrawAll(app, canvas):
+    canvas.create_rectangle(0, 0, app.width, app.height, fill="black")
+    if app.page == 0:
+        canvas.create_text(app. width / 2, 50, text="Welcome to Rubik's Cube Solver!", fill="white", font="Helvetica 30 bold")
+        canvas.create_text(app. width / 2, 100, text="Press the spacebar to scan your cube.", fill="white", font="Helvetica 20 bold")
+        canvas.create_text(app. width / 2, 150, text="Use the left and right arrow keys to navigate through the steps.", fill="white", font="Helvetica 20 bold")
+    if app.page == 1 or app.page == 2:
+        startCoords = {
+            "blue" : (200, 50, 2),
+            "white": (200, 200, 0),
+            "green" : (200, 350, 0),
+            "orange" : (50, 200, 3),
+            "red" : (350, 200, 1),
+            "yellow": (500, 200, 0)
+        }
+        for face in app.cube.getFaces():
+            startingX = startCoords[face][0]
+            startingY = startCoords[face][1]
+            rotation = startCoords[face][2]
+            drawFace(app, canvas, face, startingX, startingY, rotation)
+        drawIsometric(app, canvas, "white", "green", "orange", 900, 100)
+        drawIsometric(app, canvas, "yellow", "red", "blue", 900, 400)
+
+    if app.page == 1:
+        canvas.create_text(app. width / 2, app.height - 30, text="Press the spacebar to solve the cube", fill="white", font="Helvetica 15 bold")
+    
+    if app.page == 2:
+        if app.cube.currStep != len(app.cube.algorithm):
+            canvas.create_text(app. width / 2, app.height - 60, text=f"Step {app.cube.currStep + 1} / {len(app.cube.algorithm)}", fill="white", font="Helvetica 15 bold")
+        canvas.create_text(app. width / 2, app.height - 30, text=app.cube.getCurrentStep(), fill="white", font="Helvetica 15 bold")
+
+runApp(width=1200, height=700)
