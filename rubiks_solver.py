@@ -699,6 +699,10 @@ def appStarted(app):
     app.cube = Cube()
 
 def keyPressed(app, event):
+    if (event.key == "r"):
+        app.page = 1
+        app.cube.getFaceImages()
+        app.cube.setFaces()
     if (event.key == 'Left'):
         if app.page == 2:
             app.cube.stepBackward()
