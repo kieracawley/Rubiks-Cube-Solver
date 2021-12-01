@@ -7,8 +7,11 @@ My project takes in all 6 sides of a rubik's cube and generates a solution using
 Run `rubiks_solver.py` in the editor and ensure that `cmu_112_graphics.py` is located in the same folder.
 
 ## Additional Libraries
-In order to run this program you will need to install open-cv
+In order to run this program you will need to install open-cv and numpy. Run the following commands in your terminal:
 ```
 pip install opencv-python
 pip install numpy
 ```
+
+## Video Demo
+https://youtu.be/ArQYg01yHSs
