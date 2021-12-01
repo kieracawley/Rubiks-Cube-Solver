@@ -76,7 +76,6 @@ class Cube(object):
         self.algorithm = newAlgorithm
 
     def solveCube(self):
-        print(self.faces)
         self.algorithm = []
         self.solveWhiteCross()
         self.solveTopCorners()
@@ -621,14 +620,14 @@ class Cube(object):
             foreground = np.ones((5,5,3),dtype='uint8')*255
             foreground2 = np.ones((95,95,3),dtype='uint8')
             foreground2[:, :] = [self.colorValues[face][2], self.colorValues[face][1], self.colorValues[face][0]]
-            foreground3 = np.ones((60, 400, 3), dtype="uint8")*255
-            added_image = cv.addWeighted(frame[0:60, 0:400, :], 0, foreground3[0:60, 0:400, :], 1,0)
-            cv.putText(added_image, f"Show the {face} face", (10, 20), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0, 0), 2)
+            foreground3 = np.ones((70, 640, 3), dtype="uint8")*255
+            added_image = cv.addWeighted(frame[0:70, 0:640, :], 0, foreground3[0:70, 0:640, :], 1,0)
             upFace = "white"
             if face == "white" or face == "yellow":
                 upFace = "blue"
-            cv.putText(added_image, f"with {upFace} facing up.", (10, 50), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0, 0), 2)
-            frame[0:60, 0:400, :] = added_image 
+            cv.putText(added_image, f"Show the {face} face with {upFace} facing up.", (10, 20), cv.FONT_HERSHEY_COMPLEX_SMALL, 1, (0, 0, 0, 0), 2)
+            cv.putText(added_image, "Press Esc to capture this face", (10, 50), cv.FONT_HERSHEY_COMPLEX_SMALL, 1, (0, 0, 0, 0), 2)
+            frame[0:70, 0:640, :] = added_image 
             for box in range(9):
                 x = 100 * (box % 3) + 150
                 y = 100 * (box // 3) + 100
@@ -724,8 +723,7 @@ def appStarted(app):
     app.right = "green"
 
 def mousePressed(app, event):
-    color = input("Enter a color").lower().strip()
-    if color in app.startCoords:
+    if app.page == 1:
         x = event.x
         y = event.y
         face = ""
@@ -742,13 +740,18 @@ def mousePressed(app, event):
                 temp = xDist
                 xDist = 150 - yDist
                 yDist = temp
-            app.cube.changeColor(face, (xDist // 50, yDist // 50), color)
+            if (xDist // 50, yDist // 50) != (1, 1):
+                color = app.getUserInput("Enter a color")
+                if color != "":
+                    color = color.lower().strip()
+                if color in app.startCoords:
+                    app.cube.changeColor(face, (xDist // 50, yDist // 50), color)
 
 def keyPressed(app, event):
-    if (event.key == "a"):
+    if (event.key == "a" and app.top == "white") or (event.key == "d" and app.top == "yellow"):
         app.left = app.sideOrder[(app.sideOrder.index(app.left) - 1) % 4]
         app.right = app.sideOrder[(app.sideOrder.index(app.right) - 1) % 4]
-    if (event.key == "d"):
+    if (event.key == "d" and app.top == "white") or (event.key == "a" and app.top == "yellow"):
         app.left = app.sideOrder[(app.sideOrder.index(app.left) + 1) % 4]
         app.right = app.sideOrder[(app.sideOrder.index(app.right) + 1) % 4]
     if (event.key == "w" or event.key == "s"):
@@ -803,7 +806,7 @@ def drawIsometric(app, canvas, startX, startY):
     topRotations = (4 - app.sideOrder.index(app.left)) % 4
 
     if app.top == "yellow":
-        topRotations = (4 - topRotations) % 4
+        topRotations = (4 - topRotations + 2) % 4
         for _ in range(2):
             newLeftFace = [["","",""],["","",""],["","",""]]
             newRightFace = [["","",""],["","",""],["","",""]]
@@ -818,8 +821,6 @@ def drawIsometric(app, canvas, startX, startY):
         for i in range(9):
             newTopFace[i % 3][i // 3] = topFace[2 - (i // 3)][i % 3]
         topFace = newTopFace
-
-    print(topRotations)
 
     for i in range(9):
         topX = 43 * ((i % 3) + (i // 3)) + startX
@@ -838,6 +839,9 @@ def redrawAll(app, canvas):
         canvas.create_text(app. width / 2, 50, text="Welcome to Rubik's Cube Solver!", fill="white", font="Helvetica 30 bold")
         canvas.create_text(app. width / 2, 100, text="Press the spacebar to scan your cube.", fill="white", font="Helvetica 20 bold")
         canvas.create_text(app. width / 2, 150, text="Use the left and right arrow keys to navigate through the steps.", fill="white", font="Helvetica 20 bold")
+        canvas.create_text(app. width / 2, 200, text="Use the A, W, S, and D keys to rotate the cube.", fill="white", font="Helvetica 20 bold")
+        canvas.create_text(app. width / 2, 250, text="Press R at any time to rescan your cube.", fill="white", font="Helvetica 20 bold")
+
     if app.page == 1 or app.page == 2:
         for face in app.cube.getFaces():
             startingX = app.startCoords[face][0]
@@ -847,6 +851,7 @@ def redrawAll(app, canvas):
         drawIsometric(app, canvas, 800, 200)
 
     if app.page == 1:
+        canvas.create_text(app. width / 2, app.height - 60, text="Click on any box to change its color", fill="white", font="Helvetica 15 bold")
         canvas.create_text(app. width / 2, app.height - 30, text="Press the spacebar to solve the cube", fill="white", font="Helvetica 15 bold")
     
     if app.page == 2:
